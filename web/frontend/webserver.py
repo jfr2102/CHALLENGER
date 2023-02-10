@@ -418,37 +418,17 @@ async def submissionupload():
 @app.route('/uploadFile/', methods=['POST'])
 @login_required
 async def uploadFile():
-    cwd = os.getcwd()
-    # Print the current working directory
-    # print("Current working directory: {0}".format(cwd))
     print("UPLOAD FILE")
-    # create temp dir
-    #temp_local_dir = tempfile.mkdtemp()
-
     form = await request.form
-    testInput = form['TEST'].strip()
     for name, file in (await request.files).items():
         # .read() consumes the content, afterwards cannot get the content anymore ...
         #print(f'Processing {name}: {len(file.read())}')
-        print(file)
-        # file_path = os.path.join(
-        #    temp_local_dir, secure_filename(file.filename))
-        # open(os.path.join(cwd, "temp",
-        #                  secure_filename(file.filename)), "x").close()
-        # await file.save(os.path.join(cwd, "temp", secure_filename(file.filename)))
-        #testReadFile = open(file_path, "rb")
-        # print(testReadFile)
         # TODO: load url, por from config file or environment variables ?
-        #files={"myfile": file},
-        respone = requests.post(
+        response = requests.post(
             "http://localhost:3000/submission/upload", files={"myfile": file})
-        print(respone.text)
+        print(response.status)
         file.close()
-        # if os.path.exists(file_path):
-        #     os.remove(file_path)  # Delete file
-
-        # await file.save(os.path.join("tempTEST", secure_filename(file.filename)))
-    return await render_template('submissionResult.html', name="Submission upload result", testResult=testInput)
+    return await render_template('submissionResult.html', name="Submission Upload", response=response.text, status=response.status_code, menu=helper.menu(submissionupload=True))
 
 
 @ app.websocket('/ws')
