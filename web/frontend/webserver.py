@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import copy
+import requests
 from werkzeug.utils import secure_filename
 
 from logging.config import dictConfig
@@ -419,28 +420,39 @@ async def submissionupload():
 async def uploadFile():
     cwd = os.getcwd()
     # Print the current working directory
-    print("Current working directory: {0}".format(cwd))
+    # print("Current working directory: {0}".format(cwd))
     print("UPLOAD FILE")
+    # create temp dir
+    #temp_local_dir = tempfile.mkdtemp()
+
     form = await request.form
     testInput = form['TEST'].strip()
-    print("TEST: " + testInput)
     for name, file in (await request.files).items():
-        print(f'Processing {name}: {len(file.read())}')
+        # .read() consumes the content, afterwards cannot get the content anymore ...
+        #print(f'Processing {name}: {len(file.read())}')
         print(file)
-        print(secure_filename(file.filename))
-        await file.save(os.path.join("/tempTEST", secure_filename(file.filename)))
-    # try:
-    #     stackFile = form['stackFile']
-    #     print(stackFile)
-    # except:
-    #     print("no stack file")
-    #     stackFile = None
+        # file_path = os.path.join(
+        #    temp_local_dir, secure_filename(file.filename))
+        # open(os.path.join(cwd, "temp",
+        #                  secure_filename(file.filename)), "x").close()
+        # await file.save(os.path.join(cwd, "temp", secure_filename(file.filename)))
+        #testReadFile = open(file_path, "rb")
+        # print(testReadFile)
+        # TODO: load url, por from config file or environment variables ?
+        #files={"myfile": file},
+        respone = requests.post(
+            "http://localhost:3000/submission/upload", files={"myfile": file})
+        print(respone.text)
+        file.close()
+        # if os.path.exists(file_path):
+        #     os.remove(file_path)  # Delete file
+
+        # await file.save(os.path.join("tempTEST", secure_filename(file.filename)))
     return await render_template('submissionResult.html', name="Submission upload result", testResult=testInput)
-    # return await make_response(jsonify({"status": "ok"}), 200)
 
 
-@app.websocket('/ws')
-@login_required
+@ app.websocket('/ws')
+@ login_required
 async def notifications():
     try:
         while True:
@@ -451,7 +463,7 @@ async def notifications():
         raise
 
 
-@app.before_serving
+@ app.before_serving
 async def db_connection():
     print("start db_connection")
     connection = os.environ['DB_CONNECTION']

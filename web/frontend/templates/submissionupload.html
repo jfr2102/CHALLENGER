@@ -1,7 +1,7 @@
 {% extends "layout.html" %} {% block content %}
 <p>Upload Your Submission Stack as docker-stack.yml File</p>
 <form action="{{ url_for('uploadFile') }}" method="post" class="form" enctype="multipart/form-data">
-  <input type="file" name="file_name" class="btn btn-primary mb-2" value="Submission Stack" />
+  <input type="file" name="myfile" class="btn btn-primary mb-2" value="Submission Stack" required />
   <input type="text" name="TEST" class="form-control" value="TEST" />
   <input type="submit" name="submissionTest" class="btn btn-primary mb-2" value="Upload" />
 </form>
