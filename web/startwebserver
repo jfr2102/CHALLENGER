@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-
+export DB_CONNECTION="postgresql://localhost:5432/bandency?user=bandency&password=bandency"
+echo "Using DB_CONNECTION=$DB_CONNECTION"
 echo "Copy the current proto"
-cp ../challenger/src/main/proto/challenger.proto frontend/static/challenger.proto
+# ../challenger/
+cp ../src/main/proto/challenger.proto frontend/static/challenger.proto
 
 echo "Copy example file"
 cp ../query/example.py frontend/static/example.py

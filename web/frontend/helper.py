@@ -8,17 +8,20 @@ def menu(profile=False,
          leaderboard=False,
          testruns=False,
          rawdata=False,
-         feedback=False):
+         feedback=False,
+         submissionupload=False,):
     return [
         ["Profile", "home", "/profile", profile],
         ["VMs", "layers", "/vms", vms],
         ["Recent changes", "layers", "/recentchanges", recentchanges],
         ["Documentation", "layers", "/documentation", documentation],
-        #["Example results", "layers", "/exampleresults", exampleresults],
+        # ["Example results", "layers", "/exampleresults", exampleresults],
         ["FAQ", "layers", "/faq", faq],
         ["Leaderboard", "layers", "/leaderboard", leaderboard],
         ["Benchmarks", "layers", "/benchmarks", benchmarks],
-        #["System status", "layers", "/systemstatus", system_status],
-        #["Test runs", "layers", "/testruns", testruns],
+        # ["System status", "layers", "/systemstatus", system_status],
+        # ["Test runs", "layers", "/testruns", testruns],
         ["Datasets", "rawdata", "/rawdata", rawdata],
-        ["Feedback", "layers", "/feedback", feedback]]
+        ["Feedback", "layers", "/feedback", feedback],
+        ["Upload submission", "layers", "/submissionupload", submissionupload],
+    ]

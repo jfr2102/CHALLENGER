@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import copy
+from werkzeug.utils import secure_filename
+
 from logging.config import dictConfig
 # from quart.logging import serving_handler
 
@@ -12,9 +14,9 @@ from typing import Any, Callable, Awaitable
 
 from hypercorn.asyncio import serve
 from hypercorn.config import Config
-from quart import Quart, websocket, render_template, redirect, url_for, request, flash, make_response
-from quart_auth import AuthManager, login_required, Unauthorized, login_user, AuthUser, logout_user, current_user
 
+from quart import Quart, websocket, render_template, redirect, url_for, request, flash, make_response, jsonify
+from quart_auth import AuthManager, login_required, Unauthorized, login_user, AuthUser, logout_user, current_user
 from sshpubkeys import SSHKey, InvalidKeyError
 import frontend.helper as helper
 import frontend.worker as worker
@@ -54,8 +56,9 @@ AuthManager(app)
 # logging.basicConfig(level=logging.INFO)
 
 async def lastUpdate():
-    #wait flash("Last FAQ update - March 29th", "info")
+    # wait flash("Last FAQ update - March 29th", "info")
     return
+
 
 @app.route('/')
 async def index():
@@ -118,7 +121,8 @@ async def upload_pub_key(pubkey: str, vm_adrs: str, username, groupid, port: int
     with paramiko.SSHClient() as client:
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            client.connect(vm_adrs, port, username, pkey=pkey, timeout=3.0)  # three seconds timeout
+            client.connect(vm_adrs, port, username, pkey=pkey,
+                           timeout=3.0)  # three seconds timeout
         except:
             print("Could not connect")
             return await flash("Could not connect to VM to set the key", "danger")
@@ -135,12 +139,15 @@ async def upload_pub_key(pubkey: str, vm_adrs: str, username, groupid, port: int
                             return await flash("Key already added", "danger")
             except IOError:
                 traceback.print_exc()
-                print('authorized does not exist, continue')  # file does not exist, also ok
+                # file does not exist, also ok
+                print('authorized does not exist, continue')
 
         try:
             client.exec_command('mkdir -p ~/.ssh/', timeout=3.0)
-            client.exec_command('echo "%s" >> ~/.ssh/authorized_keys' % pubkey, timeout=3.0)
-            client.exec_command('chmod 644 ~/.ssh/authorized_keys', timeout=3.0)
+            client.exec_command(
+                'echo "%s" >> ~/.ssh/authorized_keys' % pubkey, timeout=3.0)
+            client.exec_command(
+                'chmod 644 ~/.ssh/authorized_keys', timeout=3.0)
             client.exec_command('chmod 700 ~/.ssh/', timeout=3.0)
             await flash("Key successful added", "success")
         except:
@@ -226,7 +233,8 @@ async def vms():
         ssh = {}
         for vm in vms:
             splitted = vm.forwardingadrs.split(':')
-            ssh[vm.id] = "ssh -p %s %s@%s" % (splitted[1], group.groupname, splitted[0])
+            ssh[vm.id] = "ssh -p %s %s@%s" % (splitted[1],
+                                              group.groupname, splitted[0])
 
         return await render_template('vms.html',
                                      vms=vms,
@@ -239,6 +247,7 @@ async def vms():
 @app.route('/faq/')
 @login_required
 async def faq():
+    print("FAQ")
     app.logger.info("faq")
     group = await get_group_information(current_user.auth_id)
     return await render_template('faq.html', name="FAQ", group=group,
@@ -287,6 +296,7 @@ async def benchmarkdetails(benchmarkid):
 
     return redirect_to_login()
 
+
 @app.route('/deactivatebenchmark/', methods=['POST'])
 @login_required
 async def deactivatebenchmark():
@@ -294,7 +304,7 @@ async def deactivatebenchmark():
         app.logger.info("deactivatebenchmark")
         form = await request.form
         benchmarkid = form["benchmarkid"]
-        #TODO: ensure that benchmark is from own group
+        # TODO: ensure that benchmark is from own group
         group = await get_group_information(current_user.auth_id)
         benchmark = await benchmark_get_is_active(group.id, int(benchmarkid))
         if not benchmark:
@@ -307,6 +317,7 @@ async def deactivatebenchmark():
     else:
         return redirect('/profile')
 
+
 @app.route('/querymetrics/<int:benchmarkid>/')
 @login_required
 async def querymetrics(benchmarkid):
@@ -318,7 +329,7 @@ async def querymetrics(benchmarkid):
         for m in qm:
             yield b"%d, %d, %d, %d, %d, %d, %d\n" % (m.benchmark_id, m.batch_id, m.starttime, m.q1resulttime, m.q1latency, m.q2resulttime, m.q2latency)
 
-    #return generate()
+    # return generate()
     return await make_response(generate(), {'Content-Type': 'text/csv',
                                             'Cache-Control': 'no-cache',
                                             'Transfer-Encoding': 'chunked',
@@ -332,7 +343,8 @@ async def rawdata():
     group = await get_group_information(current_user.auth_id)
     d = os.environ["DATASET_DIR"]
     files = os.listdir(d)
-    filesandsize = map(lambda f: [f, (os.path.getsize(os.path.join(d, f)) / (1024 * 1024))], files)
+    filesandsize = map(
+        lambda f: [f, (os.path.getsize(os.path.join(d, f)) / (1024 * 1024))], files)
 
     return await render_template('rawdata.html', name="Rawdata", group=group, files=filesandsize,
                                  menu=helper.menu(rawdata=True))
@@ -369,7 +381,8 @@ async def leaderboard():
         lat["rank"] = i+1
 
     throughput = copy.deepcopy(l)
-    throughput = sorted(throughput, key=lambda k: float(k['avgthroughput']), reverse=True)
+    throughput = sorted(throughput, key=lambda k: float(
+        k['avgthroughput']), reverse=True)
     for i, lat in enumerate(throughput):
         lat["rank"] = i+1
 
@@ -390,6 +403,40 @@ async def exampleresults():
 async def feedback():
     app.logger.info("feedback")
     return await render_template('feedback.html', menu=helper.menu(feedback=True), name="Feedback")
+
+
+@app.route('/submissionupload/')
+@login_required
+async def submissionupload():
+    print("UPLOAD SUBMISSION PAGE RENDER")
+    app.logger.info("submissionupload")
+    return await render_template('submissionupload.html', menu=helper.menu(submissionupload=True), name="Submission upload")
+
+
+# https://pgjones.gitlab.io/quart/reference/cheatsheet.html?highlight=request+form
+@app.route('/uploadFile/', methods=['POST'])
+@login_required
+async def uploadFile():
+    cwd = os.getcwd()
+    # Print the current working directory
+    print("Current working directory: {0}".format(cwd))
+    print("UPLOAD FILE")
+    form = await request.form
+    testInput = form['TEST'].strip()
+    print("TEST: " + testInput)
+    for name, file in (await request.files).items():
+        print(f'Processing {name}: {len(file.read())}')
+        print(file)
+        print(secure_filename(file.filename))
+        await file.save(os.path.join("/tempTEST", secure_filename(file.filename)))
+    # try:
+    #     stackFile = form['stackFile']
+    #     print(stackFile)
+    # except:
+    #     print("no stack file")
+    #     stackFile = None
+    return await render_template('submissionResult.html', name="Submission upload result", testResult=testInput)
+    # return await make_response(jsonify({"status": "ok"}), 200)
 
 
 @app.websocket('/ws')
@@ -463,4 +510,5 @@ def main():
 
 
 if __name__ == "__main__":
+    client.loop.set_debug(True)
     main()
