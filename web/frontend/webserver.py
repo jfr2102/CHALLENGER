@@ -29,6 +29,11 @@ from shared.util import raise_shutdown, Shutdown
 
 shutdown_event = asyncio.Event()
 PRIVATE_KEY_PATH = os.environ.get("PRIVATE_KEY_PATH", "cochairs")
+# TOOD: eventually read from env variable or config file
+RUNNER_ENDPOINT = "http://localhost:3000/submission/upload"
+# TODO: remove temp key and read from env variable or config file
+RUNNER_API_KEY = os.environ.get(
+    "RUNNER_API_KEY", "")
 
 
 def signal_handler(*_: Any) -> None:
@@ -409,26 +414,33 @@ async def feedback():
 @app.route('/submissionupload/')
 @login_required
 async def submissionupload():
-    print("UPLOAD SUBMISSION PAGE RENDER")
     app.logger.info("submissionupload")
     return await render_template('submissionupload.html', menu=helper.menu(submissionupload=True), name="Submission upload")
 
 
-# https://pgjones.gitlab.io/quart/reference/cheatsheet.html?highlight=request+form
 @app.route('/uploadFile/', methods=['POST'])
 @login_required
 async def uploadFile():
-    print("UPLOAD FILE")
     form = await request.form
     for name, file in (await request.files).items():
-        # .read() consumes the content, afterwards cannot get the content anymore ...
-        #print(f'Processing {name}: {len(file.read())}')
-        # TODO: load url, por from config file or environment variables ?
-        response = requests.post(
-            "http://localhost:3000/submission/upload", files={"myfile": file})
-        print(response.status)
-        file.close()
-    return await render_template('submissionResult.html', name="Submission Upload", response=response.text, status=response.status_code, menu=helper.menu(submissionupload=True))
+        try:
+            response = requests.post(RUNNER_ENDPOINT,
+                                     headers={"API-Key": RUNNER_API_KEY},
+                                     files={"submission_stack": file}
+                                     )
+            return await render_template('submissionResult.html',
+                                         name="Submission Upload",
+                                         response=response.text,
+                                         status=response.status_code,
+                                         style="success" if response.ok else "failure",
+                                         menu=helper.menu(submissionupload=True))
+        except requests.exceptions.RequestException as e:
+            print(e)
+            return await render_template('submissionResult.html',
+                                         name="Submission Upload",
+                                         response="Request to submission system failed",
+                                         status="Unknown", style="failure",
+                                         menu=helper.menu(submissionupload=True))
 
 
 @ app.websocket('/ws')
