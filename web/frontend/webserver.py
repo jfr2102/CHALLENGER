@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import copy
+import requests
 from werkzeug.utils import secure_filename
 
 from logging.config import dictConfig
@@ -28,6 +29,11 @@ from shared.util import raise_shutdown, Shutdown
 
 shutdown_event = asyncio.Event()
 PRIVATE_KEY_PATH = os.environ.get("PRIVATE_KEY_PATH", "cochairs")
+# TOOD: eventually read from env variable or config file
+RUNNER_ENDPOINT = "http://localhost:3000/submission/upload"
+# TODO: remove temp key and read from env variable or config file
+RUNNER_API_KEY = os.environ.get(
+    "RUNNER_API_KEY", "")
 
 
 def signal_handler(*_: Any) -> None:
@@ -408,39 +414,37 @@ async def feedback():
 @app.route('/submissionupload/')
 @login_required
 async def submissionupload():
-    print("UPLOAD SUBMISSION PAGE RENDER")
     app.logger.info("submissionupload")
     return await render_template('submissionupload.html', menu=helper.menu(submissionupload=True), name="Submission upload")
 
 
-# https://pgjones.gitlab.io/quart/reference/cheatsheet.html?highlight=request+form
 @app.route('/uploadFile/', methods=['POST'])
 @login_required
 async def uploadFile():
-    cwd = os.getcwd()
-    # Print the current working directory
-    print("Current working directory: {0}".format(cwd))
-    print("UPLOAD FILE")
     form = await request.form
-    testInput = form['TEST'].strip()
-    print("TEST: " + testInput)
     for name, file in (await request.files).items():
-        print(f'Processing {name}: {len(file.read())}')
-        print(file)
-        print(secure_filename(file.filename))
-        await file.save(os.path.join("/tempTEST", secure_filename(file.filename)))
-    # try:
-    #     stackFile = form['stackFile']
-    #     print(stackFile)
-    # except:
-    #     print("no stack file")
-    #     stackFile = None
-    return await render_template('submissionResult.html', name="Submission upload result", testResult=testInput)
-    # return await make_response(jsonify({"status": "ok"}), 200)
+        try:
+            response = requests.post(RUNNER_ENDPOINT,
+                                     headers={"API-Key": RUNNER_API_KEY},
+                                     files={"submission_stack": file}
+                                     )
+            return await render_template('submissionResult.html',
+                                         name="Submission Upload",
+                                         response=response.text,
+                                         status=response.status_code,
+                                         style="success" if response.ok else "failure",
+                                         menu=helper.menu(submissionupload=True))
+        except requests.exceptions.RequestException as e:
+            print(e)
+            return await render_template('submissionResult.html',
+                                         name="Submission Upload",
+                                         response="Request to submission system failed",
+                                         status="Unknown", style="failure",
+                                         menu=helper.menu(submissionupload=True))
 
 
-@app.websocket('/ws')
-@login_required
+@ app.websocket('/ws')
+@ login_required
 async def notifications():
     try:
         while True:
@@ -451,7 +455,7 @@ async def notifications():
         raise
 
 
-@app.before_serving
+@ app.before_serving
 async def db_connection():
     print("start db_connection")
     connection = os.environ['DB_CONNECTION']

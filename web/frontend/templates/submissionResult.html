@@ -1,3 +1,16 @@
-{% extends "layout.html" %} {% block content %}
-<div>{{ testResult }}</div>
+{% extends "layout.html" %} {% block content %} {% if status == 200 %}
+<style>
+  .status {
+    color: green;
+  }
+</style>
+{% else %}
+<style>
+  .status {
+    color: red;
+  }
+</style>
+{% endif %}
+<div class="status">Status: {{ status }}</div>
+<div class="status">{{ response }}</div>
 {% endblock %}
